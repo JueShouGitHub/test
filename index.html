@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adjust & Open App 测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        header {
+            background: #4A90E2;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 {
+            margin: 0;
+            font-size: 1.5em;
+            font-weight: 500;
+        }
+        .content {
+            padding: 24px;
+        }
+        .section {
+            margin-bottom: 28px;
+        }
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+            font-size: 1.2em;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            margin: 8px 0;
+            background: #4A90E2;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #3a7bc8;
+        }
+        button:active {
+            transform: translateY(1px);
+        }
+        #result {
+            margin-top: 16px;
+            padding: 12px;
+            background: #f0f7ff;
+            border: 1px solid #bee1ff;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #1a5a96;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>Adjust & App Open 测试</h1>
+    </header>
+    <div class="content">
+
+        <!-- Adjust 事件：通过 postMessage 发送键值对 -->
+        <div class="section">
+            <h2>Adjust 事件 (postMessage)</h2>
+            <p>点击按钮发送不同类型的键值对数据：</p>
+            <button onclick="sendAdjustEvent('bcf0hc', '','')">首次打开 (first_open: 5)</button>
+            <button onclick="sendAdjustEvent('c6qfrg', 29.99, 'firstrecharge')">首次充值
+                (firstrecharge: 29.99 CNY)
+                <button onclick="sendAdjustEvent('ij655p', 29.99, 'recharge')">充值 (recharge: 29.99
+                    CNY)
+                </button>
+                <button onclick="sendAdjustEvent('tx08fu', '', '')">注册 (register: )
+                </button>
+                <button onclick="sendAdjustEvent('1usjcr', '', '')">用户登录 (login: true)</button>
+        </div>
+
+        <!-- 打开第三方应用 -->
+        <div class="section">
+            <h2>打开第三方应用</h2>
+            <p>使用 <code>window.open()</code> 尝试打开：</p>
+            <button onclick="openApp('twitter://', 'https://twitter.com')">打开 Twitter App</button>
+            <button onclick="openApp('whatsapp://', 'https://web.whatsapp.com')">打开 WhatsApp
+            </button>
+            <button onclick="openApp('instagram://', 'https://instagram.com')">打开 Instagram
+            </button>
+        </div>
+
+        <!-- 结果显示 -->
+        <div id="result">点击按钮测试功能...</div>
+    </div>
+</div>
+
+<script>
+    /**
+     * 通过 postMessage 发送 Adjust 事件
+     * @param {string} token   - 事件标识符
+     * @param {string|number|boolean} value - 事件值，支持多种类型
+     */
+    function sendAdjustEvent(token, value, type) {
+        // 构造事件对象
+        const event = {
+            token: token,
+            timestamp: new Date().toISOString()
+        };
+        if(type == 'firstrecharge' || type == 'recharge'){
+            event['amount']=value
+        }
+
+        // 序列化并发送
+        const message = JSON.stringify(event);
+        window.jsBridge.postMessage(token, message);
+
+        // 更新页面显示
+        document.getElementById('result').innerHTML =
+            `<strong>Adjust 事件已发送:</strong><br>Key: ${key}<br>Value: ${value} (${typeof value})`;
+
+        console.log('Adjust Event (postMessage):', event);
+    }
+
+    /**
+     * 打开第三方应用（带降级处理）
+     * @param {string} appUrl      - 应用的自定义 URL Scheme (e.g., twitter://)
+     * @param {string} fallbackUrl - 备用网页链接
+     */
+    function openApp(appUrl, fallbackUrl) {
+        const startTime = Date.now();
+        const timeout = 500; // 检测超时时间
+
+        // 设置降级跳转
+        const fallbackTimer = setTimeout(() => {
+            if (Date.now() - startTime < 2000) {
+                console.log('App not installed, redirecting to:', fallbackUrl);
+                window.location.href = fallbackUrl;
+            }
+        }, timeout);
+
+        try {
+            // 尝试打开应用
+            window.open(appUrl, '_blank');
+
+            // 如果页面失去焦点，说明可能已跳转，取消降级
+            window.onblur = () => clearTimeout(fallbackTimer);
+        } catch (error) {
+            console.error('打开应用失败:', error);
+            clearTimeout(fallbackTimer);
+            window.location.href = fallbackUrl;
+        }
+    }
+
+    // 可选：监听来自 Android 的响应
+    window.addEventListener('message', function(event) {
+        const data = event.data;
+        try {
+            const msg = typeof data === 'string' ? JSON.parse(data) : data;
+            if (msg.type === 'adjust_response') {
+                document.getElementById('result').innerHTML =
+                    `<strong>Adjust 响应:</strong><br>${msg.message}`;
+            }
+        } catch (e) {
+            console.log('收到原生消息:', data);
+        }
+    });
+</script>
+</body>
+</html>
