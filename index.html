@@ -94,6 +94,7 @@
                 <button onclick="sendAdjustEvent('tx08fu', '', '')">注册 (register: )
                 </button>
                 <button onclick="sendAdjustEvent('1usjcr', '', '')">用户登录 (login: true)</button>
+            <button onclick="getAdid()">获取 Adjust ADID</button>
         </div>
 
         <!-- 打开第三方应用 -->
@@ -137,6 +138,26 @@
             `<strong>Adjust 事件已发送:</strong><br>Key: ${key}<br>Value: ${value} (${typeof value})`;
 
         console.log('Adjust Event (postMessage):', event);
+    }
+
+    /**
+     * 获取 Adjust ADID
+     */
+    function getAdid() {
+        try {
+            // 调用 JavascriptInterface 方法
+            const adid = window.jsBridge.getadid();
+            
+            // 显示结果
+            document.getElementById('result').innerHTML =
+                `<strong>Adjust ADID:</strong><br>${adid || '未获取到 ADID'}`;
+            
+            console.log('Adjust ADID:', adid);
+        } catch (error) {
+            console.error('获取 ADID 失败:', error);
+            document.getElementById('result').innerHTML =
+                `<strong>错误:</strong><br>无法获取 ADID - ${error.message}`;
+        }
     }
 
     /**
